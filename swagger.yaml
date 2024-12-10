@@ -1,0 +1,271 @@
+openapi: 3.0.0
+info:
+  title: "'Push' Model Training and Prediction API"
+  version: "1.0.0"
+  description: API for training, scoring, and predicting using a machine learning model.
+servers:
+  - url: http://localhost:5000
+    description: Local development server
+paths:
+  /:
+    get:
+      summary: API Health Check
+      description: Returns a 200 status to indicate the server is running.
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              example: {}
+  /train:
+    post:
+      summary: Train the model
+      description: |
+        Trains the model using the provided dataset file. 
+        The dataset must include the following columns:
+        - `Manifest_ID`
+        - `TransportUnitSizeID`
+        - `TransportUnitTypeID`
+        - `Stop_Type_ID`
+        - `Stop_Sequence_in_Manifest`
+        - `Country_ID`
+        - `GPS_LATITUDE`
+        - `GPS_LONGITUDE`
+        - `COMPANY_ID`
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data_filename:
+                  type: string
+                  description: Name of the dataset file in the dataset directory.
+              required:
+                - data_filename
+      responses:
+        200:
+          description: Model trained successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  accuracy_top_1_train:
+                    type: number
+                  accuracy_top_20_train:
+                    type: number
+        404:
+          description: Data file not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        500:
+          description: Unexpected error or invalid file format.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  /score:
+    post:
+      summary: Score the model
+      description: |
+        Scores the model on the provided dataset file. 
+        The dataset must include the same required columns as the training dataset.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data_filename:
+                  type: string
+                  description: Name of the dataset file in the dataset directory.
+              required:
+                - data_filename
+      responses:
+        200:
+          description: Model scored successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  accuracy_top_1:
+                    type: number
+                  accuracy_top_20:
+                    type: number
+        404:
+          description: Data file not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        400:
+          description: Model not trained yet.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        500:
+          description: Unexpected error or invalid file format.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  /predict:
+    post:
+      summary: Predict with the model
+      description: |
+        Performs predictions using the model on provided input data. 
+        The input must include the following columns:
+        - `Manifest_ID`
+        - `TransportUnitSizeID`
+        - `TransportUnitTypeID`
+        - `Stop_Type_ID`
+        - `Stop_Sequence_in_Manifest`
+        - `Country_ID`
+        - `GPS_LATITUDE`
+        - `GPS_LONGITUDE`
+        - `COMPANY_ID`
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  description: Data as a list of objects.
+                  properties:
+                    data:
+                      type: array
+                      description: Input data for prediction.
+                      items:
+                        type: object
+                - type: object
+                  description: Data as a dictionary of lists.
+                  properties:
+                    data:
+                      type: object
+                      description: Input data for prediction, where each key is a column name, and values are lists of data.
+                      additionalProperties:
+                        type: array
+                        items:
+                          type: number
+            examples:
+              listOfObjects:
+                summary: Data as a list of objects
+                value:
+                  data:
+                    - Manifest_ID: 0
+                      TransportUnitSizeID: 205
+                      TransportUnitTypeID: 128
+                      Stop_Type_ID: 237
+                      Stop_Sequence_in_Manifest: 2
+                      Country_ID: 248
+                      GPS_LATITUDE: 50.43574
+                      GPS_LONGITUDE: 23.42418
+                    - Manifest_ID: 0
+                      TransportUnitSizeID: 205
+                      TransportUnitTypeID: 128
+                      Stop_Type_ID: 234
+                      Stop_Sequence_in_Manifest: 1
+                      Country_ID: 302
+                      GPS_LATITUDE: 52.405278
+                      GPS_LONGITUDE: 7.060505
+              dictionaryOfLists:
+                summary: Data as a dictionary of lists
+                value:
+                  data:
+                    Manifest_ID: [0, 0]
+                    TransportUnitSizeID: [205, 205]
+                    TransportUnitTypeID: [128, 128]
+                    Stop_Type_ID: [237, 234]
+                    Stop_Sequence_in_Manifest: [2, 1]
+                    Country_ID: [248, 302]
+                    GPS_LATITUDE: [50.43574, 52.405278]
+                    GPS_LONGITUDE: [23.42418, 7.060505]
+      responses:
+        200:
+          description: Predictions returned successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: A success message.
+                  predictions:
+                    type: array
+                    description: Predictions for the input data. Each inner array corresponds to predictions for one input sample.
+                    items:
+                      type: array
+                      description: Predictions for a single input sample.
+                      items:
+                        type: object
+                        properties:
+                          company_id:
+                            type: integer
+                            description: The ID of the company.
+                          probability:
+                            type: number
+                            format: float
+                            description: Probability of the company being the correct prediction.
+              example:
+                message: "Successfully inferenced the model."
+                predictions:
+                  - 
+                    - company_id: 1
+                      probability: 0.85
+                    - company_id: 2
+                      probability: 0.10
+                    - company_id: 3
+                      probability: 0.05
+                  - 
+                    - company_id: 1
+                      probability: 0.60
+                    - company_id: 2
+                      probability: 0.25
+                    - company_id: 3
+                      probability: 0.15
+        400:
+          description: Model not trained yet.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        500:
+          description: Unexpected error or invalid input data.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
